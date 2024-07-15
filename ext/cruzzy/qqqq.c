@@ -9,20 +9,6 @@
 #include <ruby.h>
 #include <ruby/debug.h>
 
-
-
-
-
-#include <Python.h>
-
-void LLVMFuzzerFinalizePythonModule();
-void LLVMFuzzerInitPythonModule();
-
-PyObject* py_module = NULL;
-
-
-
-
 // This constant is defined in the Ruby C implementation, but it's internal
 // only. Fortunately the event hooking still respects this constant being
 // passed from an external source. For more information see:
@@ -270,6 +256,12 @@ void Init_cruzzy()
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <Python.h>
+
+static void LLVMFuzzerFinalizePythonModule();
+static void LLVMFuzzerInitPythonModule();
+
+static PyObject* py_module = NULL;
 
 /*
 
@@ -307,10 +299,7 @@ enum {
 static PyObject* py_functions[PY_FUNC_COUNT];
 
 // Forward-declare the libFuzzer's mutator callback.
-
-// extern "C" size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
-
-size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
+extern "C" size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
 
 // This function unwraps the Python arguments passed, which must be
 //
@@ -362,7 +351,7 @@ static PyMethodDef LLVMFuzzerMutatePyMethodDef = {
   NULL
 };
 
-void LLVMFuzzerInitPythonModule() {
+static void LLVMFuzzerInitPythonModule() {
   Py_Initialize();
   char* module_name = getenv("LIBFUZZER_PYTHON_MODULE");
 
@@ -410,7 +399,7 @@ void LLVMFuzzerInitPythonModule() {
 
 }
 
-void LLVMFuzzerFinalizePythonModule() {
+static void LLVMFuzzerFinalizePythonModule() {
   if (py_module != NULL) {
     uint32_t i;
     for (i = 0; i < PY_FUNC_COUNT; ++i)
@@ -420,11 +409,11 @@ void LLVMFuzzerFinalizePythonModule() {
   Py_Finalize();
 }
 
-size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
+extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
                                           size_t MaxSize, unsigned int Seed) {
   // First check if the custom python mutator is specified:
   if (!py_module) { // No custom python mutator, so therefore just mutate regularly. (LLVMFuzzerMutate is the default mutator.)
-    return LLVMFuzzerMutate(Data, Size, MaxSize);
+    return LLVMFuzzerMutate(Data, size, MaxSize);
   }
   PyObject* py_args = PyTuple_New(4);
 
