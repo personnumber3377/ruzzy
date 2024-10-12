@@ -156,41 +156,6 @@ static VALUE c_fuzz(VALUE self, VALUE test_one_input, VALUE args)
     argv[args_len] = NULL;
 
     char **args_ptr = &argv[0];
-    // fprintf(stderr, "Error: Cannot find/call custom mutator function in"
-    //                    " external Python module.\n");
-
-    fprintf(stderr, "Checking for argv arguments...\n");
-
-    fprintf(stderr, "Printing the argument shit before:\n");
-    fprintf(stderr, "Printing the first thing before:\n");
-    fprintf(stderr, "%s\n", args_ptr[0]);
-    for(int i=0;i<args_len-1;i++) {
-      fprintf(stderr, "%s\n",args_ptr[i]);
-    }
-    fprintf(stderr, "Done beforebeforebeforebeforebeforebefore!\n");
-
-    for (int i = 0; i < args_len; i++) {
-      // Now just check if the string is "---" or something like that...
-      if (strcmp(argv[i], "---") != 0) {
-        continue;
-      } else {
-        // We found the thing.
-        fprintf(stderr, "Found the \"---\" string thing...\n");
-        args_ptr = &argv[i+1];
-        args_len = args_len - i - 1; // Just put the shit stuff.
-        fprintf(stderr, "Here is the amount of arguments after the \"---\" string: %d\n", args_len); // Just print that shit..
-        break; // Break out of the loop
-      }
-    }
-
-    // Print out the arguments for debugging purposes:
-    fprintf(stderr, "Printing the argument shit:\n");
-    fprintf(stderr, "Printing the first thing:\n");
-    fprintf(stderr, "%s\n", args_ptr[0]);
-    for(int i=0;i<args_len-1;i++) {
-      fprintf(stderr, "%s\n",args_ptr[i]);
-    }
-    fprintf(stderr, "Done!\n");
 
     // https://llvm.org/docs/LibFuzzer.html#using-libfuzzer-as-a-library
     int result = LLVMFuzzerRunDriver(&args_len, &args_ptr, proc_caller);

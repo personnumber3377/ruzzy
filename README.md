@@ -1,3 +1,8 @@
+
+# NOTE!!!
+
+This is my fork of ruzzy, which implements python custom mutators and also some command line modifications. I developed this software with the sole purpose of finding DOS bugs in ruby programs. The command line modifications which are in the same commit as this text you are reading right now was added to support fuzzing some finicky targets which can not be launched with a simple `ruby somefile.rb` command. For example gitlab. You can follow my journey to fuzzing gitlab here: https://personnumber3377.github.io/projects/adding_fuzzers_for_gitlab.html . Feel free to request changes and file an issue or a pull request etc etc..
+
 # Ruzzy
 
 [![Test](https://github.com/trailofbits/ruzzy/actions/workflows/test.yml/badge.svg)](https://github.com/trailofbits/ruzzy/actions/workflows/test.yml)
