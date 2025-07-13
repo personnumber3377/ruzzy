@@ -9,20 +9,6 @@
 #include <ruby.h>
 #include <ruby/debug.h>
 
-
-
-
-
-#include <Python.h>
-
-void LLVMFuzzerFinalizePythonModule();
-void LLVMFuzzerInitPythonModule();
-
-PyObject* py_module = NULL;
-
-
-
-
 // This constant is defined in the Ruby C implementation, but it's internal
 // only. Fortunately the event hooking still respects this constant being
 // passed from an external source. For more information see:
@@ -156,41 +142,6 @@ static VALUE c_fuzz(VALUE self, VALUE test_one_input, VALUE args)
     argv[args_len] = NULL;
 
     char **args_ptr = &argv[0];
-    // fprintf(stderr, "Error: Cannot find/call custom mutator function in"
-    //                    " external Python module.\n");
-
-    fprintf(stderr, "Checking for argv arguments...\n");
-
-    fprintf(stderr, "Printing the argument shit before:\n");
-    fprintf(stderr, "Printing the first thing before:\n");
-    fprintf(stderr, "%s\n", args_ptr[0]);
-    for(int i=0;i<args_len-1;i++) {
-      fprintf(stderr, "%s\n",args_ptr[i]);
-    }
-    fprintf(stderr, "Done beforebeforebeforebeforebeforebefore!\n");
-
-    for (int i = 0; i < args_len; i++) {
-      // Now just check if the string is "---" or something like that...
-      if (strcmp(argv[i], "---") != 0) {
-        continue;
-      } else {
-        // We found the thing.
-        fprintf(stderr, "Found the \"---\" string thing...\n");
-        args_ptr = &argv[i+1];
-        args_len = args_len - i - 1; // Just put the shit stuff.
-        fprintf(stderr, "Here is the amount of arguments after the \"---\" string: %d\n", args_len); // Just print that shit..
-        break; // Break out of the loop
-      }
-    }
-
-    // Print out the arguments for debugging purposes:
-    fprintf(stderr, "Printing the argument shit:\n");
-    fprintf(stderr, "Printing the first thing:\n");
-    fprintf(stderr, "%s\n", args_ptr[0]);
-    for(int i=0;i<args_len-1;i++) {
-      fprintf(stderr, "%s\n",args_ptr[i]);
-    }
-    fprintf(stderr, "Done!\n");
 
     // https://llvm.org/docs/LibFuzzer.html#using-libfuzzer-as-a-library
     int result = LLVMFuzzerRunDriver(&args_len, &args_ptr, proc_caller);
@@ -284,9 +235,6 @@ static VALUE c_trace(VALUE self, VALUE harness_path)
 
 void Init_cruzzy()
 {
-    if (!py_module) { // Initialize the python mutator
-        LLVMFuzzerInitPythonModule();
-    }
     if (signal(SIGINT, sigint_handler) == SIG_ERR) {
         fprintf(stderr, "Could not set SIGINT signal handler\n");
         exit(1);
@@ -305,9 +253,20 @@ void Init_cruzzy()
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <Python.h>
 
+static void LLVMFuzzerFinalizePythonModule();
+static void LLVMFuzzerInitPythonModule();
+// LLVMFuzzerInitPythonModul
+int LLVMFuzzerInitialize(int *argc, char ***argv) {
+ // ReadAndMaybeModify(argc, argv);
+ LLVMFuzzerInitPythonModule(); // Init the python module shit...
+ return 0;
+}
+
+
+static PyObject* py_module = NULL;
 /*
-
 class LLVMFuzzerPyContext {
   public:
     LLVMFuzzerPyContext() {
@@ -321,7 +280,6 @@ class LLVMFuzzerPyContext {
       }
     }
 };
-
 */
 
 // This takes care of (de)initializing things properly
@@ -333,18 +291,11 @@ static void py_fatal_error() {
   exit(1);
 }
 
-enum {
-  /* 00 */ PY_FUNC_CUSTOM_MUTATOR,
-  /* 01 */ PY_FUNC_CUSTOM_CROSSOVER,
-  PY_FUNC_COUNT
-};
 
-static PyObject* py_functions[PY_FUNC_COUNT];
+
+static PyObject* py_functions[2];
 
 // Forward-declare the libFuzzer's mutator callback.
-
-// extern "C" size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
-
 size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
 
 // This function unwraps the Python arguments passed, which must be
@@ -397,7 +348,7 @@ static PyMethodDef LLVMFuzzerMutatePyMethodDef = {
   NULL
 };
 
-void LLVMFuzzerInitPythonModule() {
+static void LLVMFuzzerInitPythonModule() {
   Py_Initialize();
   char* module_name = getenv("LIBFUZZER_PYTHON_MODULE");
 
@@ -408,13 +359,13 @@ void LLVMFuzzerInitPythonModule() {
     Py_DECREF(py_name);
 
     if (py_module != NULL) {
-      py_functions[PY_FUNC_CUSTOM_MUTATOR] =
+      py_functions[0] =
         PyObject_GetAttrString(py_module, "custom_mutator");
-      py_functions[PY_FUNC_CUSTOM_CROSSOVER] =
+      py_functions[1] =
         PyObject_GetAttrString(py_module, "custom_crossover");
 
-      if (!py_functions[PY_FUNC_CUSTOM_MUTATOR]
-        || !PyCallable_Check(py_functions[PY_FUNC_CUSTOM_MUTATOR])) {
+      if (!py_functions[0]
+        || !PyCallable_Check(py_functions[0])) {
         if (PyErr_Occurred())
           PyErr_Print();
         fprintf(stderr, "Error: Cannot find/call custom mutator function in"
@@ -422,13 +373,13 @@ void LLVMFuzzerInitPythonModule() {
         py_fatal_error();
       }
 
-      if (!py_functions[PY_FUNC_CUSTOM_CROSSOVER]
-        || !PyCallable_Check(py_functions[PY_FUNC_CUSTOM_CROSSOVER])) {
+      if (!py_functions[1]
+        || !PyCallable_Check(py_functions[1])) {
         if (PyErr_Occurred())
           PyErr_Print();
         fprintf(stderr, "Warning: Python module does not implement crossover"
                         " API, standard crossover will be used.\n");
-        py_functions[PY_FUNC_CUSTOM_CROSSOVER] = NULL;
+        py_functions[1] = NULL;
       }
     } else {
       if (PyErr_Occurred())
@@ -445,10 +396,10 @@ void LLVMFuzzerInitPythonModule() {
 
 }
 
-void LLVMFuzzerFinalizePythonModule() {
+static void LLVMFuzzerFinalizePythonModule() {
   if (py_module != NULL) {
     uint32_t i;
-    for (i = 0; i < PY_FUNC_COUNT; ++i)
+    for (i = 0; i < 2; ++i)
       Py_XDECREF(py_functions[i]);
     Py_DECREF(py_module);
   }
@@ -498,8 +449,8 @@ size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
 
   // Pass the native callback
   PyTuple_SetItem(py_args, 3, py_callback);
-  fprintf(stderr, "Calling the shit..\n");
-  py_value = PyObject_CallObject(py_functions[PY_FUNC_CUSTOM_MUTATOR], py_args);
+
+  py_value = PyObject_CallObject(py_functions[0], py_args);
 
   Py_DECREF(py_args);
   Py_DECREF(py_callback);
